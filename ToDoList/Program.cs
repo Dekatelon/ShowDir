@@ -1,68 +1,84 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace ToDoList
+namespace ShowDir
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            Node<string> root = new Node<string>(@"C:\Users\Dekat\Documents\Angular");
-            Console.Write(SetDirStructure(root));
-            Directory.GetCurrentDirectory();
-            Console.Read();
-        }
-        
+            if (args.Length == 1 && Directory.Exists(args[0]))
+            {
+                ShowDirStructure(new Node<string>(args[0]));
+                return;
+            }
 
-        static string SetDirStructure(Node<string> root) => SetDirStructure(root, new StringBuilder());
-        static string SetDirStructure(Node<string> root, StringBuilder sb)
+            Console.WriteLine("Please enter a valid absolute or relative path to display the directory structure:");
+            string dir = Console.ReadLine();
+            if (Directory.Exists(dir))
+            {
+                ShowDirStructure(new Node<string>(Path.GetFullPath(dir)));
+                Console.Read();
+            }
+        }
+
+        private static void ShowDirStructure(Node<string> root)
         {
-            // sb.Append(GetNodeString(root));
-            Console.Write(GetNodeString(root));
+            Console.Write(GetNodeString(root, true));
             string[] dirs = Directory.GetDirectories(GetFullPath(root));
             string[] files = Directory.GetFiles(GetFullPath(root));
             foreach (var file in files)
             {
                 Node<string> node = new Node<string>(GetLastPathNode(file), root);
-                //sb.Append(GetNodeString(node));
                 Console.Write(GetNodeString(node));
+                if (file == files.Last())
+                {
+                    Console.WriteLine($"{GetDirDepthMarkers(node)}{(Directory.GetDirectories(GetFullPath(node.Parent)).Length > 0 ? "| " : "  ")}");
+                }
             }
 
             foreach (var dir in dirs)
             {
-                SetDirStructure(new Node<string>(GetLastPathNode(dir), root), sb);
+                ShowDirStructure(new Node<string>(GetLastPathNode(dir), root));
             }
-
-            return sb.ToString();
         }
 
-        static string GetLastPathNode(string path) => path.Substring(path.LastIndexOf('\\') + 1);
-        static string GetFullPath(Node<string> node)
+        private static string GetLastPathNode(string path) => path.Substring(path.LastIndexOf('\\') + 1);
+
+        private static string GetFullPath(Node<string> node) => WhileNotRoot(ref node, (n, s) => { s.Insert(0, $"\\{n.Object}"); }, true).Insert(0, node.Object).ToString();
+
+        private static string GetNodeString(Node<string> node, bool isDirectory = false) => $"{GetDirDepthMarkers(node)}{(isDirectory ? "|>" : "|-")}{node.Object}\n";
+
+        private static string GetDirDepthMarkers(Node<string> node)
         {
-            StringBuilder sb = new StringBuilder();
-            while (!node.IsRoot)
+            Node<string> parent = node.Parent;
+            return node.IsRoot ? string.Empty : WhileNotRoot(ref parent, (n, s) =>
             {
-                sb.Insert(0, $"\\{node.Object}");
-                node = node.Parent;
-            }
-
-            sb.Insert(0, node.Object);
-            return sb.ToString();
+                if (Directory.GetDirectories(GetFullPath(n.Parent)).Last() == GetFullPath(n))
+                {
+                    s.Insert(0, "  ");
+                }
+                else
+                {
+                    s.Insert(0, "| ");
+                }
+            }).Insert(0, "  ").ToString();
         }
-        static string GetNodeString(Node<string> node)
+
+        private static StringBuilder WhileNotRoot(ref Node<string> node, Action<Node<string>, StringBuilder> action, bool setNodeAsRoot = false)
         {
             StringBuilder sb = new StringBuilder();
             Node<string> current = node;
             while (!current.IsRoot)
             {
-                sb.Append("| ");
+                action(current, sb);
                 current = current.Parent;
             }
-            return $"{sb.ToString()}|-{node.Object}\n";
+
+            node = setNodeAsRoot ? current : node;
+            return sb;
         }
     }
 }
