@@ -11,52 +11,74 @@ namespace ShowDir
         {
             if (args.Length == 1 && Directory.Exists(args[0]))
             {
-                ShowDirStructure(new Node<string>(args[0]));
+                ShowDirStructure(new Node<string>(GetValidatedFullPath(args[0])));
                 return;
             }
 
-            Console.WriteLine("Please enter a valid absolute or relative path to display the directory structure:");
-            string dir = Console.ReadLine();
-            if (Directory.Exists(dir))
+            string dir = string.Empty;
+            do
             {
-                ShowDirStructure(new Node<string>(Path.GetFullPath(dir)));
-                Console.Read();
+                Console.WriteLine("Please enter a valid absolute or relative path to display the directory structure:");
+                dir = Console.ReadLine();
+                if (Directory.Exists(dir))
+                {
+                    ShowDirStructure(new Node<string>(GetValidatedFullPath(dir)));
+                }
+            } while (dir != "exit");
+        }
+
+        private static string GetValidatedFullPath(string dir)
+        {
+            if (dir.Last() == '\\')
+            {
+                dir = dir.Remove(dir.Length - 1);
             }
+
+            return Path.GetFullPath(dir);
         }
 
         private static void ShowDirStructure(Node<string> root)
         {
-            Console.Write(GetNodeString(root, true));
-            string[] dirs = Directory.GetDirectories(GetFullPath(root));
+            WriteNodeString(root, true);
+            string[] dirs = GetDirectories(root);
             string[] files = Directory.GetFiles(GetFullPath(root));
             foreach (var file in files)
             {
-                Node<string> node = new Node<string>(GetLastPathNode(file), root);
-                Console.Write(GetNodeString(node));
-                if (file == files.Last())
+                Node<string> node = GetLastPathNode(file, root);
+                WriteNodeString(node);
+                if (file == files.Last() && !dirs.Any())
                 {
-                    Console.WriteLine($"{GetDirDepthMarkers(node)}{(Directory.GetDirectories(GetFullPath(node.Parent)).Length > 0 ? "| " : "  ")}");
+                    WriteDepthMarkers(node);
                 }
             }
 
             foreach (var dir in dirs)
             {
-                ShowDirStructure(new Node<string>(GetLastPathNode(dir), root));
+                ShowDirStructure(GetLastPathNode(dir, root));
+            }
+
+            if (!dirs.Any() && !files.Any())
+            {
+                WriteDepthMarkers(root);
             }
         }
 
-        private static string GetLastPathNode(string path) => path.Substring(path.LastIndexOf('\\') + 1);
+        private static void WriteDepthMarkers(Node<string> node) => Console.WriteLine(GetDirDepthMarkers(node));
+
+        private static string[] GetDirectories(Node<string> node) => Directory.GetDirectories(GetFullPath(node));
+
+        private static Node<string> GetLastPathNode(string path, Node<string> parent) => new Node<string>(path.Substring(path.LastIndexOf('\\') + 1), parent);
 
         private static string GetFullPath(Node<string> node) => WhileNotRoot(ref node, (n, s) => { s.Insert(0, $"\\{n.Object}"); }, true).Insert(0, node.Object).ToString();
 
-        private static string GetNodeString(Node<string> node, bool isDirectory = false) => $"{GetDirDepthMarkers(node)}{(isDirectory ? "|>" : "|-")}{node.Object}\n";
+        private static void WriteNodeString(Node<string> node, bool isDirectory = false) => Console.WriteLine($"{GetDirDepthMarkers(node)}{(isDirectory ? "|>" : "|-")}{node.Object}");
 
         private static string GetDirDepthMarkers(Node<string> node)
         {
             Node<string> parent = node.Parent;
             return node.IsRoot ? string.Empty : WhileNotRoot(ref parent, (n, s) =>
             {
-                if (Directory.GetDirectories(GetFullPath(n.Parent)).Last() == GetFullPath(n))
+                if (GetDirectories(n.Parent).Last() == GetFullPath(n))
                 {
                     s.Insert(0, "  ");
                 }
