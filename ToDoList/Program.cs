@@ -115,7 +115,7 @@ namespace ShowDir
         private static string GetFullPath(Node<string> node) => WhileNotRoot(ref node, (n, s) => { s.Insert(0, $"\\{n.Object}"); }, true).Insert(0, node.Object).ToString();
 
         /// <summary>
-        /// Writes a node to the console, which represents a fale or a directory
+        /// Writes a node to the console, which represents a file or a directory
         /// </summary>
         /// <param name="node">The node to be written</param>
         /// <param name="isDirectory"></param>
